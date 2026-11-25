@@ -1,20 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Driver's Log</title>
 <style>
-  body { font-family: -apple-system, Arial, sans-serif; margin: 0; padding: 12px; background: #f2f4f7; }
-  h1 { font-size: 1.3rem; text-align: center; margin: 8px 0 12px; }
-  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
-  th, td { padding: 6px 4px; text-align: center; font-size: 0.95rem; }
-  th { background: #1f4e79; color: #fff; }
-  tr:nth-child(even) td { background: #f7f9fc; }
-  input[type=time] { width: 100%; box-sizing: border-box; font-size: 1rem; padding: 6px 2px; border: 1px solid #ccc; border-radius: 6px; }
-  .dur { font-weight: bold; color: #1f4e79; white-space: nowrap; }
-  .total { margin: 14px 0; padding: 14px; background: #1f4e79; color: #fff; text-align: center; font-size: 1.2rem; border-radius: 8px; }
-  button { width: 100%; padding: 12px; font-size: 1rem; border: none; border-radius: 8px; background: #c0392b; color: #fff; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; margin: 12px; background: #f1f3f8; }
+  h1 { text-align: center; font-size: 24px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #2d5078; color: #fff; padding: 12px 4px; font-size: 16px; }
+  td { padding: 6px 2px; text-align: center; }
+  input[type=time] { font-size: 17px; width: 100%; box-sizing: border-box; padding: 8px 2px; }
+  .dur { font-size: 17px; font-weight: bold; }
+  #total { background: #2d5078; color: #fff; text-align: center; font-size: 22px; padding: 18px; border-radius: 12px; margin-top: 14px; }
+  button { width: 100%; background: #b04335; color: #fff; font-size: 18px; padding: 14px; border: 0; border-radius: 12px; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -25,34 +24,72 @@
   </thead>
   <tbody id="rows"></tbody>
 </table>
-<div class="total">Total driving time: <span id="total">0h 00m</span></div>
-<button onclick="clearAll()">Clear all</button>
+<div id="total">Total driving time: 0h 00m</div>
+<button id="clear">Clear all</button>
 
 <script>
-const rows = document.getElementById('rows');
-const saved = JSON.parse(localStorage.getItem('driverLog') || '[]');
+var rows = document.getElementById('rows');
+var saved = [];
+try { saved = JSON.parse(localStorage.getItem('driverLog') || '[]'); } catch (e) { saved = []; }
 
-for (let i = 0; i < 10; i++) {
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td>${i + 1}</td>
-    <td><input type="time" id="s${i}"></td>
-    <td><input type="time" id="f${i}"></td>
-    <td class="dur" id="d${i}">-</td>`;
+for (var i = 0; i < 10; i++) {
+  var tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td>' + (i + 1) + '</td>' +
+    '<td><input type="time" id="s' + i + '"></td>' +
+    '<td><input type="time" id="f' + i + '"></td>' +
+    '<td class="dur" id="d' + i + '">-</td>';
   rows.appendChild(tr);
   if (saved[i]) {
     document.getElementById('s' + i).value = saved[i].s || '';
     document.getElementById('f' + i).value = saved[i].f || '';
   }
-  tr.addEventListener('input', update);
 }
 
 function toMins(t) {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+  var p = t.split(':');
+  return Number(p[0]) * 60 + Number(p[1]);
 }
 
-function fmt(mins) {
-  return Math.floor(mins / 60) + 'h ' + String(
+function fmt(m) {
+  var mm = m % 60;
+  return Math.floor(m / 60) + 'h ' + (mm < 10 ? '0' : '') + mm + 'm';
+}
 
+function update() {
+  var total = 0;
+  var data = [];
+  for (var i = 0; i < 10; i++) {
+    var s = document.getElementById('s' + i).value;
+    var f = document.getElementById('f' + i).value;
+    data.push({ s: s, f: f });
+    var d = document.getElementById('d' + i);
+    if (s && f) {
+      var mins = (toMins(f) - toMins(s) + 1440) % 1440;
+      d.textContent = fmt(mins);
+      total += mins;
+    } else {
+      d.textContent = '-';
+    }
+  }
+  document.getElementById('total').textContent = 'Total driving time: ' + fmt(total);
+  try { localStorage.setItem('driverLog', JSON.stringify(data)); } catch (e) {}
+}
 
+rows.addEventListener('input', update);
+rows.addEventListener('change', update);
+
+document.getElementById('clear').addEventListener('click', function () {
+  if (confirm('Clear all trips?')) {
+    for (var i = 0; i < 10; i++) {
+      document.getElementById('s' + i).value = '';
+      document.getElementById('f' + i).value = '';
+    }
+    update();
+  }
+});
+
+update();
+</script>
+</body>
+</html>
